@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Index</title>
+<link rel="stylesheet" href="../shared/code/styles.css">
+<link rel="stylesheet" href="page.css">
+</head>
+<body>
+<main>
+  <header class="header">
+    <h1>Index</h1>
+    <img class="logo" id="logo" alt="Pacifica logo" hidden>
+  </header>
+  <p class="demo-note">Demo with made-up students. Changes stay in this browser and don't appear in Sylus.
+    <button type="button" id="demo-reset">Start over</button> <a class="demo-back" href="../">Back</a></p>
+
+  <details class="panel" open>
+    <summary><h2>Add a Student</h2></summary>
+    <p class="hint">Add a new student to the list.</p>
+    <!-- Three boxes a row. Each label is a name line then its box, so the boxes line up. -->
+    <form id="add-form" class="form-grid" autocomplete="off">
+      <label class="wide"><span class="field">Name <span class="format">Last Name, First Name</span></span>
+        <span class="pick"><input name="student_name" required pattern=".+,.+" title="Last Name, First Name">
+        <ul id="name-similar" class="suggestions info" hidden></ul></span></label>
+      <label><span class="field">School ID</span>
+        <span class="with-button"><input name="school_id" required inputmode="numeric" maxlength="6" pattern="\d{6}" title="6 digits">
+          <button type="button" id="random-id" class="icon-button" title="Random School ID" aria-label="Random School ID">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="2.5"/><circle cx="5.5" cy="5.5" r=".6"/><circle cx="10.5" cy="5.5" r=".6"/><circle cx="8" cy="8" r=".6"/><circle cx="5.5" cy="10.5" r=".6"/><circle cx="10.5" cy="10.5" r=".6"/></svg>
+          </button></span></label>
+
+      <!-- Typed boxes: suggestions drop down, and "m", "junior" or "extra large" are understood.
+           Grade and expected graduation fill each other in, so only one is needed. -->
+      <label><span class="field">Grade</span>
+        <span class="pick"><input name="grade" data-choices="grade">
+        <ul class="suggestions" role="listbox" hidden></ul></span></label>
+      <label><span class="field">Gender</span>
+        <span class="pick"><input name="gender" data-choices="gender" required>
+        <ul class="suggestions" role="listbox" hidden></ul></span></label>
+      <label><span class="field">Shirt Size</span>
+        <span class="pick"><input name="tshirt_size" data-choices="tshirt_size" required>
+        <ul class="suggestions" role="listbox" hidden></ul></span></label>
+
+      <label><span class="field">Expected Graduation</span>
+        <span class="pick"><input name="graduation_year" data-choices="graduation_year" inputmode="numeric" maxlength="4">
+        <ul class="suggestions" role="listbox" hidden></ul></span></label>
+      <label><span class="field">Email</span> <input name="email" type="email"></label>
+      <label><span class="field">Counselor <span id="counselor-note" class="note" hidden></span></span>
+        <span class="pick"><input name="counselor" autocomplete="off">
+        <ul id="counselor-list" class="suggestions" role="listbox" hidden></ul></span></label>
+      <div class="actions">
+        <button type="button" id="undo-add" hidden>Undo</button>
+        <button type="submit" class="primary">Add student</button>
+      </div>
+    </form>
+    <div id="add-message" class="message" role="status"></div>
+  </details>
+
+  <!-- A section per CSV of groups (Clubs, Athletics, Events, Service Hours...), built by page.js. -->
+  <div id="group-sections" class="group-sections"></div>
+
+  <details class="panel">
+    <summary><h2>Counselors by Last Name</h2></summary>
+    <p class="hint">Give each counselor the students whose last names start with these letters.</p>
+    <table class="rules">
+      <thead><tr><th>From</th><th>To</th><th>Counselor</th><th></th></tr></thead>
+      <tbody id="rules"></tbody>
+    </table>
+    <div class="actions">
+      <button type="button" id="add-rule">Add a range</button>
+      <button type="button" id="preview" class="primary">Preview changes</button>
+    </div>
+    <div id="preview-result"></div>
+  </details>
+
+  <details class="panel">
+    <summary><h2>Students <span id="count" class="count"></span></h2></summary>
+    <div class="toolbar students-bar">
+      <p class="hint">Click a name to see that student's details.</p>
+      <button type="button" id="copy-all-emails" class="copy-emails">Copy emails</button>
+      <div class="sort"><select id="grade-only" aria-label="Show one grade"></select></div>
+      <div class="sort">
+        <select id="sort-by" aria-label="Sort by">
+          <option value="first_name">First name</option>
+          <option value="last_name">Last name</option>
+          <option value="grade">Grade</option>
+        </select>
+        <button type="button" id="sort-dir" aria-label="Ascending, click for descending" title="Ascending"></button>
+      </div>
+      <span class="then">then</span>
+      <div class="sort">
+        <select id="then-by" aria-label="Then sort by">
+          <option value="last_name">Last name</option>
+          <option value="first_name">First name</option>
+          <option value="grade">Grade</option>
+        </select>
+        <button type="button" id="then-dir" aria-label="Ascending, click for descending" title="Ascending"></button>
+      </div>
+    </div>
+    <div id="students-message" class="message" role="status"></div>
+    <input id="students-search" class="list-search" placeholder="Search students" aria-label="Search students" autocomplete="off" spellcheck="false">
+    <ul id="students" class="students"></ul>
+  </details>
+</main>
+
+<!-- One student's details: every students.csv column and their rows in every other CSV. -->
+<dialog id="student-dialog" class="dialog" aria-labelledby="dialog-name">
+  <div class="dialog-head">
+    <h2 id="dialog-name"></h2>
+    <button type="button" id="dialog-close" class="close" aria-label="Close">×</button>
+  </div>
+  <div id="dialog-body" class="details"></div>
+  <div class="dialog-foot">
+    <div id="dialog-message" class="message" role="status"></div>
+    <div class="actions"><button type="button" id="delete" class="danger">Delete student</button></div>
+  </div>
+</dialog>
+
+<!-- One student's entry in a group: a box for each detail that can be changed. -->
+<dialog id="member-dialog" class="dialog" aria-labelledby="member-name">
+  <form id="member-form">
+    <div class="dialog-head">
+      <h2 id="member-name"></h2>
+      <button type="button" id="member-close" class="close" aria-label="Close">×</button>
+    </div>
+    <p id="member-group" class="member-group"></p>
+    <div id="member-fields" class="member-fields"></div>
+    <div class="dialog-foot">
+      <div id="member-message" class="message" role="status"></div>
+      <div class="actions">
+        <button type="button" id="member-cancel">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<!-- The one pop-up that asks before a student is added or anything is deleted or removed. -->
+<dialog id="confirm-dialog" class="dialog confirm" aria-labelledby="confirm-question">
+  <div class="confirm-box">
+    <p id="confirm-question"></p>
+    <ul id="confirm-issues" class="confirm-issues" hidden></ul>
+    <div class="actions">
+      <button type="button" id="confirm-no">Cancel</button>
+      <button type="button" id="confirm-yes" class="danger"></button>
+    </div>
+  </div>
+</dialog>
+<script src="../shared/code/dom.js"></script>
+<script src="../shared/code/sort.js"></script>
+<script src="../shared/code/names.js"></script>
+<script src="choices.js"></script>
+<script src="demo.js"></script>
+<script src="page.js"></script>
+</body>
+</html>

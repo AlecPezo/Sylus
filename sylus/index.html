@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sylus</title>
+<!-- Page parts live in elements/ and ../shared/code/. The data comes only from output/data.js,
+     which build/build.js writes; this page never reads the CSVs or connects to anything. -->
+<link rel="stylesheet" href="../shared/code/styles.css">
+</head>
+<body>
+<main class="wide">
+  <header class="header">
+    <h1>Sylus</h1>
+    <a class="demo-back" href="../">Back</a>
+    <img class="logo" id="logo" alt="Pacifica logo" hidden>
+  </header>
+
+  <!-- Split screen: the students on the left (with their count, sort and search lined up
+       with the list), and the one you click shown in full on the right, the whole height. -->
+  <div class="split">
+    <div class="side">
+      <div class="toolbar">
+        <span class="count"><span id="count"></span><span class="built" id="built"></span></span>
+        <div class="sort-controls">
+        <div class="sort"><select id="grade-only" aria-label="Show one grade"></select></div>
+        <div class="sort">
+          <select id="sort-by" aria-label="Sort by">
+            <option value="first_name">First name</option>
+            <option value="last_name">Last name</option>
+            <option value="grade">Grade</option>
+          </select>
+          <button type="button" id="sort-dir" aria-label="Ascending, click for descending" title="Ascending"></button>
+        </div>
+        </div>
+      </div>
+      <div class="list" id="list"></div>
+      <div id="error"></div>
+      <div class="reading" id="reading" hidden></div>
+      <form class="search" id="search-form" autocomplete="off">
+        <input id="q" placeholder="Search students or groups" role="combobox" aria-expanded="false"
+          aria-controls="suggestions" aria-autocomplete="list" enterkeyhint="search" autofocus>
+        <ul class="suggestions" id="suggestions" role="listbox" hidden></ul>
+      </form>
+    </div>
+    <aside class="detail" id="detail" aria-live="polite">
+      <div class="detail-empty">Click a student to see everything about them.</div>
+    </aside>
+  </div>
+</main>
+
+<script src="output/data.js"></script>
+<script src="../shared/code/dom.js"></script>
+<script src="../shared/code/names.js"></script>
+<script src="elements/search.js"></script>
+<script src="elements/header.js"></script>
+<script src="../shared/code/sort.js"></script>
+<script src="elements/list.js"></script>
+<script src="elements/search-box.js"></script>
+<script src="elements/app.js"></script>
+</body>
+</html>

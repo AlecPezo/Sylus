@@ -1,0 +1,176 @@
+/* The entry tool reuses the lookup page's colours (lookup-styles.css) and adds forms. */
+body { overflow: auto; }
+/* The tint over the background only shows when there is a picture (images/index-background.jpg). */
+body:not(.has-background)::before { display: none; }
+main { height: auto; gap: 16px; padding-bottom: 48px; }
+h2 { font-size: 1.1rem; font-weight: 500; margin: 0 0 12px; }   /* same weight as the title */
+/* See-through like the lookup page's list. --panel-fill follows --list-fill in
+   elements/styles.css; set it here instead to give this page its own (0% clear, 100% solid). */
+:root { --panel-fill: var(--list-fill); --warning-red: #ff5a5f; }
+.panel { background: color-mix(in srgb, var(--card) var(--panel-fill), transparent);
+  border: var(--box-border); border-radius: 10px; padding: 16px; }   /* same border as Sylus's boxes */
+/* Under a section's title: its description, or a warning in its place. */
+.hint { color: var(--muted); margin: -4px 0 12px; }
+.warning { color: var(--warning-red); margin: -4px 0 12px; }
+
+/* Fold-away panels: click the heading (or its arrow) to open or close. */
+details.panel > summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+details.panel > summary::-webkit-details-marker { display: none; }
+details.panel > summary::before { content: "▸"; color: var(--muted); font-size: 1rem; transition: transform .15s; }
+details.panel[open] > summary::before { transform: rotate(90deg); }
+details.panel > summary h2 { margin: 0; }
+details.panel[open] > summary { margin-bottom: 12px; }
+details.panel > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: .9rem; color: var(--text); }
+
+/* Add a student: three boxes a row (one on a phone), every box at the same height. */
+.form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.form-grid label { justify-content: flex-end; }
+.form-grid .field { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.form-grid input, .form-grid select { width: 100%; box-sizing: border-box; }
+/* Labels are flex boxes, which would otherwise override hidden (the New club name box). */
+label[hidden] { display: none; }
+.form-grid .wide { grid-column: span 2; }
+/* A box with a small button beside it: School ID and its random button. */
+.with-button { display: flex; gap: 6px; }
+.with-button input { min-width: 0; }
+.icon-button { flex: none; display: grid; place-items: center; width: var(--entry-box); height: var(--entry-box); padding: 0; }
+.icon-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.2; }
+.format { color: var(--muted); font-size: .8rem; margin-left: 4px; }
+.note { color: var(--warning-red); font-size: .8rem; margin-left: 4px; }
+.form-grid .actions { grid-column: 1 / -1; }
+@media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .form-grid .wide { grid-column: auto; } }
+
+/* Typed boxes' suggestions drop down under the box (Sylus's open upwards). */
+.pick { position: relative; display: block; }
+.pick .suggestions { top: calc(100% + 4px); bottom: auto; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.pick input.unknown { outline: 2px solid var(--error); outline-offset: 1px; }
+/* Boxes and buttons are see-through like Sylus's search bar and sort control (--list-fill). */
+input, select { padding: 8px 10px; font: inherit; color: var(--text);
+  background: color-mix(in srgb, var(--card) var(--list-fill), transparent);
+  border: 1px solid var(--line); border-radius: 6px; }
+select option { background: var(--card); }
+input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.actions { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; margin-top: 4px; }
+button { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line); color: var(--text);
+  background: color-mix(in srgb, var(--card) var(--list-fill), transparent); }
+button:hover { background: color-mix(in srgb, var(--text) 7%, transparent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 500; }
+.message { margin-top: 12px; }
+.message:empty { display: none; }
+.ok { background: var(--chip); padding: 10px 12px; border-radius: 8px; }
+.ok .undo { margin-left: 6px; padding: 2px 10px; font-size: .85rem; }
+.rules { border-collapse: collapse; margin-bottom: 8px; }
+.rules th { text-align: left; font-weight: 400; color: var(--muted); font-size: .85rem; padding: 0 8px 4px 0; }
+.rules td { padding: 0 8px 6px 0; }
+.rules input.letter { width: 3.5em; text-align: center; text-transform: uppercase; }
+.changes { margin: 12px 0 0; padding-left: 18px; }
+.students { list-style: none; margin: 0; padding: 0; columns: 2 220px; }
+.students li { padding: 2px 0; break-inside: avoid; }
+.students small { color: var(--muted); }
+.count { color: var(--muted); font-weight: var(--weight); }
+
+/* Group sections sit in the page like the other sections. */
+.group-sections { display: contents; }
+
+/* Group sections: the name search reuses the lookup page's search box, suggestions opening upwards. */
+.labelled .search { margin-top: 0; }
+.form-grid .labelled { display: flex; flex-direction: column; gap: 4px; justify-content: flex-end; }
+.form-grid .labelled[hidden], .panel .actions[hidden], .drop-button[hidden] { display: none; }
+/* The student lookup and the dropdowns open under their box; long lists scroll. */
+.labelled .suggestions { top: calc(100% + 4px); bottom: auto; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.panel .suggestions { max-height: 16rem; overflow-y: auto; }
+.panel input.unknown { outline: 2px solid var(--warning-red); outline-offset: 1px; }
+.club-heading { font-weight: 500; margin: 0; }
+/* The group's name on the left, its role and sort controls on the right. */
+.member-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin: 16px 0 8px; }
+.member-head[hidden] { display: none; }
+.member-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+/* Member lists: rows in a grid, so the Remove buttons form straight lines down each column
+   and across each row, however long the text beside them is. */
+.students.members { columns: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); column-gap: 28px; }
+.students li.member { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 6px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) var(--row-divider), transparent); }
+.students li.member > span { overflow-wrap: anywhere; }
+.students li.member button { padding: 2px 10px; font-size: .85rem; }
+.suggestions li.taken { color: var(--muted); cursor: default; }
+
+/* Students list: the description with the sort control beside it, then names that open the pop-up. */
+.students-bar { margin-top: 0; }
+.students-bar .hint { margin: 0 auto 0 0; }
+.then { color: var(--muted); }
+.students .name { background: none; border: 0; padding: 0; color: var(--text); font: inherit; cursor: pointer; text-align: left; }
+.students .name:hover { text-decoration: underline; }
+
+/* The student pop-up, laid out like a student opened on Sylus. The profile is two columns
+   when there's room, one on a narrow window. */
+.dialog { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; color: var(--text);
+  background: color-mix(in srgb, var(--bg) 80%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  border: var(--box-border); border-radius: 10px; }
+.dialog::backdrop { background: rgba(0, 0, 0, .45); }
+.dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 6px; }
+.dialog-head h2 { margin: 0; }
+.close { padding: 0 8px; font-size: 1.4rem; line-height: 1.4; background: transparent; border: 0; color: var(--muted); }
+.dialog .section ul.profile { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 20px; }
+@media (max-width: 560px) { .dialog .section ul.profile { grid-template-columns: 1fr; } }
+.dialog .profile li { overflow-wrap: anywhere; }
+.dialog .none { color: var(--muted); font-size: .9rem; }
+.dialog-foot { padding: 0 16px 16px; }
+.dialog-foot .actions { justify-content: flex-end; }
+/* The search box above each list of students. */
+.panel .list-search { width: 100%; margin-bottom: 10px; }
+.panel .list-search::placeholder { color: var(--text); opacity: 1; }
+
+/* The Copy emails buttons, next to a list's title. */
+.panel .copy-emails { padding: 2px 10px; font-size: .85rem; white-space: nowrap; }
+
+/* The pop-up for a student's entry in a group. */
+.member-group { color: var(--muted); margin: 0; padding: 0 16px; }
+.member-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; padding: 14px 16px; }
+.member-fields input { width: 100%; height: var(--entry-box); padding: 0 10px; font-size: var(--entry-text); }
+
+/* The confirm pop-up: small, with its buttons on the right. */
+.dialog.confirm { width: min(420px, calc(100vw - 32px)); }
+.confirm-box { padding: 18px 20px 16px; }
+.confirm p { margin: 0 0 14px; }
+.confirm-issues { margin: 0 0 14px; padding-left: 18px; color: var(--warning-red); font-size: .9rem; }
+.confirm .actions { justify-content: flex-end; margin-top: 0; }
+button.danger { background: var(--error-bg); color: var(--error); border-color: transparent; }
+
+/* Index's picture is lined up by its top edge, so the top half shows rather than the middle. */
+body.has-background { background-position: center top; }
+
+/* One size for every section: all text at --entry-text, all boxes and action buttons at
+   --entry-box. Change these two to resize the whole page together. */
+:root { --entry-text: .9rem; --entry-box: 2.5rem; }
+.panel, .panel label, .panel button, .warning, .club-heading, .students, .rules th { font-size: var(--entry-text); }
+.panel input, .panel select { height: var(--entry-box); padding: 0 10px; font-size: var(--entry-text);
+  border: 1px solid var(--line); border-radius: 6px; }
+.panel .actions button { height: var(--entry-box); padding: 0 14px; }
+.panel .sort select { height: calc(var(--entry-box) - 3px); border: 0; }
+.panel .drop-button { position: relative; display: block; width: 100%; height: var(--entry-box); padding: 0 28px 0 10px; text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid var(--line); border-radius: 6px; }
+.panel .drop-button::after { content: "▾"; position: absolute; right: 10px; color: var(--muted); }
+.drop-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Add sits at the top right of its section, level with the section's title. */
+details.panel { position: relative; }
+.panel .form-grid .wide { grid-column: span 2; }
+/* A box with a small button beside it: School ID and its random button. */
+.with-button { display: flex; gap: 6px; }
+.with-button input { min-width: 0; }
+.icon-button { flex: none; display: grid; place-items: center; width: var(--entry-box); height: var(--entry-box); padding: 0; }
+.icon-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.2; }
+.format { color: var(--muted); font-size: .8rem; margin-left: 4px; }
+.note { color: var(--warning-red); font-size: .8rem; margin-left: 4px; }
+.form-grid .actions { position: absolute; top: 10px; right: 16px; margin: 0; }
+
+/* The group box can be typed in, with the same arrow as the other dropdowns. */
+.panel .typeable input { padding-right: 28px; }
+.typeable::after { content: "▾"; position: absolute; right: 10px; top: calc(var(--entry-box) / 2); transform: translateY(-50%);
+  color: var(--muted); pointer-events: none; }
+.panel .typeable input::placeholder { color: var(--text); opacity: 1; }
+
+/* The "possibly taken" list is only for reading, so its rows don't act like choices. */
+.suggestions.info li, .suggestions.info li:hover { cursor: default; background: none; }
