@@ -22,7 +22,9 @@ SL.createSearch = function ({ people, groupTypes, synonyms, studentFields = {} }
   }
 
   // Equal, or only a plural "s" apart.
+  // Two-letter words must match exactly, so "ha" isn't taken for "has" and ignored.
   function sameWordExact(typed, known) {
+    if (typed.length < 3 && !/^\d/.test(typed)) return typed === known;
     return typed === known || typed === known + 's' || typed + 's' === known || typed === known + 'es';
   }
 

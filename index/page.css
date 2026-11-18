@@ -92,7 +92,12 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .students.members { columns: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); column-gap: 28px; }
 .students li.member { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 6px 0;
   border-bottom: 1px solid color-mix(in srgb, var(--line) var(--row-divider), transparent); }
-.students li.member > span { overflow-wrap: anywhere; }
+/* One line per row: anything longer than the row ends in "…". The whole row opens the pop-up. */
+.students li.member > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.students li.member { cursor: pointer; }
+.students li.member:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.members .name:hover { text-decoration: none; }
+.sort button[hidden] { display: none; }
 .students li.member button { padding: 2px 10px; font-size: .85rem; }
 .suggestions li.taken { color: var(--muted); cursor: default; }
 
@@ -118,6 +123,10 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 .dialog .none { color: var(--muted); font-size: .9rem; }
 .dialog-foot { padding: 0 16px 16px; }
 .dialog-foot .actions { justify-content: flex-end; }
+/* The note under a form saying what's still to fill in. */
+.notice { color: var(--warning-red); margin: 10px 0 0; }
+.notice[hidden] { display: none; }
+
 /* The search box above each list of students. */
 .panel .list-search { width: 100%; margin-bottom: 10px; }
 .panel .list-search::placeholder { color: var(--text); opacity: 1; }

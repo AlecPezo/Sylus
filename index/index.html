@@ -20,7 +20,7 @@
     <summary><h2>Add a Student</h2></summary>
     <p class="hint">Add a new student to the list.</p>
     <!-- Three boxes a row. Each label is a name line then its box, so the boxes line up. -->
-    <form id="add-form" class="form-grid" autocomplete="off">
+    <form id="add-form" class="form-grid" autocomplete="off" novalidate>
       <label class="wide"><span class="field">Name <span class="format">Last Name, First Name</span></span>
         <span class="pick"><input name="student_name" required pattern=".+,.+" title="Last Name, First Name">
         <ul id="name-similar" class="suggestions info" hidden></ul></span></label>
@@ -54,6 +54,7 @@
         <button type="submit" class="primary">Add student</button>
       </div>
     </form>
+    <p id="add-notice" class="notice" role="status" hidden></p>
     <div id="add-message" class="message" role="status"></div>
   </details>
 
@@ -84,18 +85,8 @@
         <select id="sort-by" aria-label="Sort by">
           <option value="first_name">First name</option>
           <option value="last_name">Last name</option>
-          <option value="grade">Grade</option>
         </select>
         <button type="button" id="sort-dir" aria-label="Ascending, click for descending" title="Ascending"></button>
-      </div>
-      <span class="then">then</span>
-      <div class="sort">
-        <select id="then-by" aria-label="Then sort by">
-          <option value="last_name">Last name</option>
-          <option value="first_name">First name</option>
-          <option value="grade">Grade</option>
-        </select>
-        <button type="button" id="then-dir" aria-label="Ascending, click for descending" title="Ascending"></button>
       </div>
     </div>
     <div id="students-message" class="message" role="status"></div>
@@ -127,6 +118,7 @@
     <p id="member-group" class="member-group"></p>
     <div id="member-fields" class="member-fields"></div>
     <div class="dialog-foot">
+      <p id="member-notice" class="notice" role="status" hidden></p>
       <div id="member-message" class="message" role="status"></div>
       <div class="actions">
         <button type="button" id="member-cancel">Cancel</button>

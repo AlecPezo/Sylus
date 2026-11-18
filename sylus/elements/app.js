@@ -3,7 +3,7 @@
 (function () {
   const data = window.STUDENT_LIFE;
   if (!data) {
-    SL.showError('No data yet. Double-click start in the access folder to build it, then reopen this page.');
+    SL.showError('No data yet. Double-click start.cmd to build it, then reopen this page.');
     return;
   }
 

@@ -50,6 +50,32 @@
     });
   }
 
+  // ---- Something left to fill in ----
+
+  // Says under a form what's missing, and takes you to it: a dropdown opens, a box gets the
+  // cursor. `problem()` gives what's still missing, { control, text } or null; it's asked again
+  // after every change in the form, so the note updates and goes once nothing is missing.
+  function needs(notice, problem) {
+    const found = problem();
+    notice.problem = problem;
+    notice.hidden = !found;
+    if (!found) return false;
+    notice.textContent = found.text;
+    const button = found.control.closest('.pick')?.querySelector('.drop-button');
+    if (button && !button.hidden) { button.focus(); button.click(); } else { found.control.focus(); found.control.click(); }
+    return true;
+  }
+
+  function watchNotice(area, notice) {
+    const recheck = () => {
+      if (notice.hidden || !notice.problem) return;
+      const found = notice.problem();
+      notice.hidden = !found;
+      if (found) notice.textContent = found.text;
+    };
+    for (const type of ['input', 'change', 'focusout']) area.addEventListener(type, recheck);
+  }
+
   // ---- Current students and dropdown choices ----
 
   let current = { students: [], groups: {} };
@@ -61,28 +87,29 @@
     showExtraBoxes(state.extraColumns ?? []);
   }
 
-  // Does a student belong in a list searched for `typed`? Names match as on Sylus, small typos
-  // included; `details` are the other things in that list, like a role.
-  function inSearch(person, typed, details) {
+  // The entries of a list that match `typed`. Names come first, as on Sylus: only the best
+  // matches across the list, typos included. Only when no name matches are the other details
+  // (a role, a counselor) looked at, by the start of a word, so "ha" finds Hannah and Hamilton,
+  // not everyone whose counselor is Ms. Hale.
+  function searchList(items, typed, personOf, detailsOf) {
     const wanted = SL.normalize(typed);
-    if (!wanted || SL.findStudents(typed, [person]).length) return true;
-    return details.some(detail => SL.normalize(detail).includes(wanted));
+    if (!wanted) return items;
+    const people = [...new Set(items.map(personOf))];
+    const named = new Set(SL.findStudents(typed, people));
+    if (named.size) return items.filter(item => named.has(personOf(item)));
+    return items.filter(item => detailsOf(item).some(detail => ` ${SL.normalize(detail)}`.includes(` ${wanted}`)));
   }
 
-  // The second sort, for students the first one ties, like everyone in the same grade.
-  const thenSort = { by: 'last_name', ascending: true };
-  const compareStudents = (a, b) => SL.sort.column(SL.sort.by, SL.sort.ascending)(a, b)
-    || SL.sort.column(thenSort.by, thenSort.ascending)(a, b) || SL.sort.compare(a, b);
-
   // The students the search box and grade menu leave showing.
-  const shownStudents = () => current.students.filter(s => (!$('grade-only').value || s.grade === $('grade-only').value)
-    && inSearch(s, $('students-search').value, [s.school_id, SL.gradeName(s.grade), s.counselor]));
+  const shownStudents = () => searchList(
+    current.students.filter(s => !$('grade-only').value || s.grade === $('grade-only').value),
+    $('students-search').value, s => s, s => [s.school_id, SL.gradeName(s.grade), s.counselor]);
 
   // The Students list: names with their grade, in the order the sort controls set.
   function showStudents() {
     const list = $('students');
     SL.sort.gradeMenu($('grade-only'), current.students);
-    const shown = shownStudents().sort(compareStudents);
+    const shown = shownStudents().sort(SL.sort.compare);
     $('count').textContent = shown.length === current.students.length ? `(${shown.length})` : `(${shown.length} of ${current.students.length})`;
     list.replaceChildren();
     if (shown.length === 0) list.append(el('li', 'none', 'No students match.'));
@@ -182,8 +209,9 @@
 
       const highlight = () => [...box.children].forEach((li, i) => li.setAttribute('aria-selected', String(i === active)));
       const close = () => { box.hidden = true; };
-      const open = () => {
-        shown = SL.choices.suggest(input.value, options);
+      // Clicking shows every choice; typing narrows them.
+      const open = (all = false) => {
+        shown = all ? options : SL.choices.suggest(input.value, options);
         active = shown.length ? 0 : -1;
         // Just the names (Freshman…Senior) and letters (XS…XXL), not the other words understood.
         box.replaceChildren(...shown.map(c => {
@@ -207,9 +235,10 @@
         input.classList.toggle('unknown', unknown);
         input.setCustomValidity(unknown ? `Try one of: ${options.map(c => c.label).join(', ')}` : '');
       };
-      const pick = value => { input.value = value; check(); close(); };
+      const pick = value => { input.value = value; check(); close(); input.dispatchEvent(new Event('change', { bubbles: true })); };
 
-      input.addEventListener('focus', open);
+      input.addEventListener('focus', () => open(true));
+      input.addEventListener('click', () => { if (box.hidden) open(true); });
       input.addEventListener('input', () => { input.classList.remove('unknown'); input.setCustomValidity(''); open(); });
       input.addEventListener('blur', () => { check(); close(); });
       input.addEventListener('keydown', event => {
@@ -309,6 +338,7 @@
     counselorTyped = true;
     counselorList.hidden = true;
     checkCounselor();
+    counselorBox.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   function showCounselors(narrow) {
@@ -377,9 +407,29 @@
   }
 
   // Details are checked first, so the pop-up only asks about a student who can be added.
+  // What has to be filled in before a student can be added, in the order of the boxes.
+  function studentProblem(form) {
+    const missing = (control, text) => ({ control, text });
+    const name = SL.choices.splitName(form.student_name.value);
+    if (!form.student_name.value.trim()) return missing(form.student_name, 'Fill in the name.');
+    if (!name.first_name || !name.last_name) return missing(form.student_name, 'Type the name as Last Name, First Name.');
+    if (!form.school_id.value.trim()) return missing(form.school_id, 'Fill in the School ID.');
+    if (!/^\d{6}$/.test(form.school_id.value.trim())) return missing(form.school_id, 'School ID must be 6 digits.');
+    if (!form.grade.value.trim() && !form.graduation_year.value.trim()) return missing(form.grade, 'Choose a grade or expected graduation.');
+    for (const [box, label] of [[form.grade, 'grade'], [form.graduation_year, 'expected graduation'], [form.gender, 'gender'], [form.tshirt_size, 'shirt size']]) {
+      if (box.required && !box.value.trim()) return missing(box, `Choose a ${label}.`);
+      if (box.validationMessage) return missing(box, box.validationMessage);
+    }
+    if (form.email.value.trim() && !form.email.checkValidity()) return missing(form.email, "That email doesn't look right.");
+    return null;
+  }
+  watchNotice(addForm, $('add-notice'));
+
   addForm.addEventListener('submit', async event => {
     event.preventDefault();
-    const form = event.target, values = Object.fromEntries(new FormData(form));
+    const form = event.target;
+    if (needs($('add-notice'), () => studentProblem(form))) return;
+    const values = Object.fromEntries(new FormData(form));
     const check = await api('/api/students/check', values);
     if (check.errors) return showMessage($('add-message'), check);
     $('add-message').replaceChildren();
@@ -450,7 +500,15 @@
       label.append(el('span', 'field', words(f.column)), ' ', inputs[i]);
       return label;
     }));
+    $('member-notice').hidden = true;
+    const hours = inputs.find(input => /hours/i.test(input.name));
+    const problem = () => {
+      if (hours && !hours.value.trim()) return { control: hours, text: 'Fill in the hours.' };
+      if (hours && !/^\d+(\.\d+)?$/.test(hours.value.trim())) return { control: hours, text: 'Hours must be a number.' };
+      return null;
+    };
     saveMember = async () => {
+      if (needs($('member-notice'), problem)) return;
       const changes = Object.fromEntries(inputs.map(input => [input.name, input.value]));
       const result = await api(`/api/groups/${encodeURIComponent(file)}/edit`, { row, changes });
       if (result.errors) return showMessage($('member-message'), result);
@@ -461,6 +519,7 @@
     inputs[0]?.focus();
   }
 
+  watchNotice($('member-form'), $('member-notice'));
   $('member-form').addEventListener('submit', event => { event.preventDefault(); saveMember(); });
   $('member-close').addEventListener('click', () => memberDialog.close());
   $('member-cancel').addEventListener('click', () => memberDialog.close());
@@ -494,7 +553,7 @@
       select.value = option.value;
       sync();
       close();
-      select.dispatchEvent(new Event('change'));
+      select.dispatchEvent(new Event('change', { bubbles: true }));
     };
     const open = () => {
       list.replaceChildren(...[...select.options].map(option => {
@@ -545,7 +604,7 @@
       select.value = option.value;
       sync();
       list.hidden = true;
-      select.dispatchEvent(new Event('change'));
+      select.dispatchEvent(new Event('change', { bubbles: true }));
     };
     const open = () => {
       const typed = typing ? input.value.trim() : '';
@@ -691,6 +750,9 @@
 
     const message = el('div', 'message');
     message.setAttribute('role', 'status');
+    const notice = Object.assign(el('p', 'notice'), { hidden: true });
+    notice.setAttribute('role', 'status');
+    watchNotice(grid, notice);
     const heading = el('h3', 'club-heading');
 
     // Above the members, on the right: pick one role, and sort with Sylus's direction arrow.
@@ -699,15 +761,20 @@
     roleFilter.setAttribute('aria-label', `Show one ${roleColumn}`);
     const sortBy = el('select');
     sortBy.setAttribute('aria-label', 'Sort by');
-    sortBy.append(new Option('Last name', 'last_name'), new Option('First name', 'first_name'), new Option('Grade', 'grade'));
+    sortBy.append(new Option('Last name', 'last_name'), new Option('First name', 'first_name'));
     const sortDir = Object.assign(el('button'), { type: 'button', title: 'Ascending' });
     sortDir.setAttribute('aria-label', 'Ascending, click for descending');
     sortDir.append(SL.sort.arrowIcon());
     let ascending = true;
     const gradeOnly = el('select');
     gradeOnly.setAttribute('aria-label', 'Show one grade');
+    // With all grades showing, the list goes grade by grade, in the order this arrow sets.
+    const gradeDir = Object.assign(el('button'), { type: 'button', title: 'Grades ascending' });
+    gradeDir.setAttribute('aria-label', 'Grades ascending, click for descending');
+    gradeDir.append(SL.sort.arrowIcon());
+    let gradesAscending = true;
     const gradeBox = el('div', 'sort'), roleBox = el('div', 'sort'), sortBox = el('div', 'sort');
-    gradeBox.append(gradeOnly);
+    gradeBox.append(gradeOnly, gradeDir);
     roleBox.append(roleFilter);
     sortBox.append(sortBy, sortDir);
     const memberControls = el('div', 'member-controls');
@@ -727,7 +794,7 @@
     const article = /^[aeiou]/.test(kind) ? 'an' : 'a';
     const description = el('p', 'hint', `Add students to ${article} ${kind}, or pick New, type a name and press Enter.`);
     panel.append(summary,
-      description, warning, grid, message, memberHead, memberSearch, memberList);
+      description, warning, grid, notice, message, memberHead, memberSearch, memberList);
     $('group-sections').append(panel);
 
     const typedName = () => newName.value.trim().replace(/\s+/g, ' ');
@@ -775,27 +842,34 @@
         roleFilter.value = roles.includes(keep) ? keep : '';
       }
       SL.sort.gradeMenu(gradeOnly, members().map(m => byId[m.student_id]).filter(Boolean));
-      const compare = SL.sort.comparer(sortBy.value, ascending);
-      const rows = members()
+      gradeDir.hidden = !!gradeOnly.value;   // one grade showing: nothing to order
+      const byName = SL.sort.comparer(sortBy.value, ascending);
+      const compare = (a, b) => (gradeOnly.value ? 0 : SL.sort.column('grade', gradesAscending)(a, b)) || byName(a, b);
+      const listed = members()
         .filter(row => !roleColumn || !roleFilter.value || row[roleColumn] === roleFilter.value)
         .map(row => ({ row, person: byId[row.student_id] ?? {} }))
         .sort((a, b) => compare(a.person, b.person))
-        .filter(({ person }) => !gradeOnly.value || person.grade === gradeOnly.value)
-        .filter(({ row, person }) => inSearch(person, memberSearch.value, group.fields.map(f => row[f.column]).concat(person.school_id)))
-        .map(({ row, person }) => ({ row, email: person.email, student: person.name ?? 'Unknown student' }));
+        .filter(({ person }) => !gradeOnly.value || person.grade === gradeOnly.value);
+      const rows = searchList(listed, memberSearch.value, item => item.person,
+        ({ row, person }) => group.fields.map(f => row[f.column]).concat(person.school_id))
+        .map(({ row, person }) => ({ row, email: person.email, grade: person.grade, student: person.name ?? 'Unknown student' }));
       shownEmails = rows.map(r => r.email);
       memberHead.hidden = memberSearch.hidden = !name || choice.value === NEW_GROUP;   // a group being named has nobody yet
       heading.replaceChildren(`${name} `, el('span', 'count', `(${rows.length})`));
       memberList.replaceChildren();
       if (rows.length === 0 && members().length > 0) memberList.append(el('li', 'none', 'No students match.'));
-      for (const { row, student: who } of rows) {
+      for (const { row, grade, student: who } of rows) {
         const item = el('li', 'member');
-        // The name opens a pop-up to change this entry's details.
-        const text = el('span');
-        const open = Object.assign(el('button', 'name', who), { type: 'button', title: `Change ${who}'s details` });
+        // Clicking anywhere on the row but Remove opens a pop-up to change this entry's details.
+        // The grade comes first; a line too long for the row ends in "…", in full on hover.
+        const about = [grade && SL.gradeName(grade), details(row)].filter(Boolean).join(' · ');
+        const text = Object.assign(el('span'), { title: `${who} · ${about}` });
+        const open = Object.assign(el('button', 'name', who), { type: 'button' });
         const editable = group.fields.filter(f => f.type !== 'date');
-        open.addEventListener('click', () => editMember({ file, fields: editable, row, who, groupName: name }));
-        text.append(open, ' ', el('small', null, details(row)));
+        item.addEventListener('click', event => {
+          if (!event.target.closest('button') || event.target === open) editMember({ file, fields: editable, row, who, groupName: name });
+        });
+        text.append(open, ' ', el('small', null, about));
         const remove = Object.assign(el('button', null, 'Remove'), { type: 'button', title: `Take ${who} out of ${name}` });
         remove.addEventListener('click', async () => {
           const entry = group.repeats ? ` (${details(row)})` : '';
@@ -826,6 +900,13 @@
 
     roleFilter.addEventListener('change', showMembers);
     gradeOnly.addEventListener('change', showMembers);
+    gradeDir.addEventListener('click', () => {
+      gradesAscending = !gradesAscending;
+      gradeDir.classList.toggle('down', !gradesAscending);
+      gradeDir.title = gradesAscending ? 'Grades ascending' : 'Grades descending';
+      gradeDir.setAttribute('aria-label', gradesAscending ? 'Grades ascending, click for descending' : 'Grades descending, click for ascending');
+      showMembers();
+    });
     memberSearch.addEventListener('input', showMembers);
     sortBy.addEventListener('change', showMembers);
     sortDir.addEventListener('click', () => {
@@ -911,6 +992,7 @@
       student.value = person.name;
       suggestionBox.hidden = true;
       student.setAttribute('aria-expanded', 'false');
+      student.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
     function suggest() {
@@ -929,7 +1011,11 @@
         if (first.length >= 4 && SL.editDistance(first, name) <= 2) return 1;
         return SL.normalize(s.last_name).startsWith(first) ? 2 : 3;
       };
-      suggestions = (byId.length ? byId : current.students.filter(s => SL.findStudents(typed, [s]).length))
+      // Typos only count when nothing matches the name properly, so "hana" doesn't bring up Ana.
+      const scored = current.students.map(s => [s, SL.matchStudents(typed, [s]).score]).filter(([, score]) => score > 0);
+      const best = Math.max(0, ...scored.map(([, score]) => score));
+      const matched = scored.filter(([, score]) => best < 2 || score >= 2).map(([s]) => s);
+      suggestions = (byId.length ? byId : matched)
         .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name)).slice(0, 8);
       active = suggestions.findIndex(s => !already.has(s.student_id));
       suggestionBox.replaceChildren();
@@ -962,10 +1048,15 @@
       const already = taken();
       const open = suggestions.filter(s => !already.has(s.student_id));
       const person = picked ?? (student.value.trim() && open.length === 1 ? open[0] : null);
-      if (!person) {
-        student.focus();
-        return showMessage(message, { errors: ['Choose a student from the suggestions.'] });
-      }
+      const hours = grid.querySelector('input[name*="hours" i]');
+      const problem = () => {
+        if (!picked && !(student.value.trim() && open.length === 1)) {
+          return { control: student, text: student.value.trim() ? 'Choose a student from the suggestions.' : 'Fill in the student name.' };
+        }
+        if (hours && !hours.value.trim()) return { control: hours, text: 'Fill in the hours.' };
+        return null;
+      };
+      if (needs(notice, problem)) return;
       const values = Object.fromEntries(fields.map(f => [f.column, f.value()]));
       const result = await api(url('add'), { ...values, [column]: chosen(), student_id: person.student_id });
       if (result.errors) return showMessage(message, result);
@@ -1053,15 +1144,6 @@
   SL.sort.setUp(showStudents);
   $('students-search').addEventListener('input', showStudents);
   $('grade-only').addEventListener('change', showStudents);
-  $('then-dir').append(SL.sort.arrowIcon());
-  $('then-by').addEventListener('change', event => { thenSort.by = event.target.value; showStudents(); });
-  $('then-dir').addEventListener('click', event => {
-    const button = event.currentTarget, up = thenSort.ascending = !thenSort.ascending;
-    button.classList.toggle('down', !up);
-    button.title = up ? 'Ascending' : 'Descending';
-    button.setAttribute('aria-label', up ? 'Ascending, click for descending' : 'Descending, click for ascending');
-    showStudents();
-  });
 
   // The logo and background picture show only if they're in images/.
   fetch('images/logo.svg', { method: 'HEAD' }).then(res => {
